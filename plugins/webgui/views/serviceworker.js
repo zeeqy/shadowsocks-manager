@@ -1,4 +1,4 @@
-const ONLINE_CACHE_NAME = '2018-03-07 15:18:43 <%= serviceWorkerTime%>';
+const ONLINE_CACHE_NAME = '2018-04-01 19:10:23 <%= serviceWorkerTime%>';
 const isSWOpen = JSON.parse('<%= serviceWorker%>');
 
 const emptyCacheUrl = [];
@@ -33,6 +33,10 @@ const onlineCacheUrl = [
   '/libs/qrcode.min.js',
   '/libs/style.css',
   
+  '/public/views/skin/bing.html',
+  '/public/views/skin/default.html',
+  '/public/views/skin/fs_bing.html',
+
   '/public/views/home/home.html',
   '/public/views/home/index.html',
   '/public/views/home/login.html',
@@ -54,17 +58,20 @@ const onlineCacheUrl = [
   '/public/views/admin/accountSetting.html',
   '/public/views/admin/accountSortAndFilterDialog.html',
   '/public/views/admin/addAccount.html',
+  '/public/views/admin/addGroup.html',
   '/public/views/admin/addServer.html',
   '/public/views/admin/addUser.html',
   '/public/views/admin/admin.html',
   '/public/views/admin/baseSetting.html',
   '/public/views/admin/changePassword.html',
   '/public/views/admin/editAccount.html',
+  '/public/views/admin/editGroup.html',
   '/public/views/admin/editNotice.html',
   '/public/views/admin/editPayment.html',
   '/public/views/admin/editServer.html',
   '/public/views/admin/giftcardBatchDetails.html',
   '/public/views/admin/giftcardBatchList.html',
+  '/public/views/admin/groupList.html',
   '/public/views/admin/index.html',
   '/public/views/admin/mailSetting.html',
   '/public/views/admin/newNotice.html',
@@ -88,6 +95,7 @@ const onlineCacheUrl = [
   '/public/views/dialog/addAccount.html',
   '/public/views/dialog/addGiftCardBatch.html',
   '/public/views/dialog/alert.html',
+  '/public/views/dialog/ban.html',
   '/public/views/dialog/changePassword.html',
   '/public/views/dialog/confirm.html',
   '/public/views/dialog/email.html',
