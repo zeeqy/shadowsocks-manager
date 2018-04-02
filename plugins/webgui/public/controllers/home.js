@@ -42,17 +42,17 @@ app
   .controller('HomeIndexController', ['$scope', '$state',
     ($scope, $state) => {
       $scope.icons = [{
-        icon: 'flash_on',
-        title: '快速搭建',
-        content: '仅依赖Node.js，无需安装数据库（可选MySQL）',
+        icon: 'headset',
+        title: '小圈子主义',
+        content: '限制用户数量，仅在社交圈内推广',
       }, {
-        icon: 'build',
-        title: '易于配置',
-        content: '带有插件系统，仅需修改配置文件即可运行',
+        icon: 'free_breakfast',
+        title: '免费分享',
+        content: '个人开发项目，分享多余流量',
       }, {
-        icon: 'vpn_key',
-        title: '官方标准',
-        content: '支持libev和python版本的标准manager API',
+        icon: 'memory',
+        title: '高效稳定',
+        content: '多服务器支持，高峰期速度保证',
       }];
       $scope.login = () => { $state.go('home.login'); };
       $scope.signup = () => { $state.go('home.signup'); };
@@ -96,8 +96,8 @@ app
       };
     }
   ])
-  .controller('HomeSignupController', ['$scope', '$state', '$interval', '$timeout', 'homeApi', 'alertDialog', '$localStorage',
-    ($scope, $state, $interval, $timeout, homeApi, alertDialog, $localStorage) => {
+  .controller('HomeSignupController', ['$scope', '$state', '$interval', '$timeout', 'homeApi', 'alertDialog',
+    ($scope, $state, $interval, $timeout, homeApi, alertDialog) => {
       $scope.user = {};
       $scope.sendCodeTime = 0;
       $scope.sendCode = () => {
@@ -123,14 +123,9 @@ app
         alertDialog.loading().then(() => {
           return homeApi.userSignup($scope.user.email, $scope.user.code, $scope.user.password);
         })
-        .then(userType => {
-          $localStorage.home.status = userType;
+        .then(success => {
           alertDialog.show('用户注册成功', '确定').then(success => {
-            if(userType === 'admin') {
-              $state.go('admin.index');
-            } else {
-              $state.go('user.index');
-            }
+            $state.go('home.login');
           });
         }).catch(err => {
           alertDialog.show(err, '确定');
@@ -171,35 +166,16 @@ app
     }
   ])
   .controller('HomeMacLoginController', ['$scope', '$http', '$state', '$stateParams', '$localStorage',
-    ($scope, $http, $state, $stateParams, $localStorage) => {
-      const mac = $stateParams.mac;
-      $http.post('/api/home/macLogin', {
-        mac,
-      }).then(() => {
-        $localStorage.user = {};
-        $localStorage.home.status = 'normal';
-        $state.go('user.index');
-      }).catch(() => {
-        $localStorage.home = {};
-        $localStorage.user = {};
-        $state.go('home.index');
-      });
-    }
-  ])
-  .controller('HomeTelegramLoginController', ['$scope', '$http', '$state', '$stateParams', '$localStorage',
-    ($scope, $http, $state, $stateParams, $localStorage) => {
-      const token = $stateParams.token;
-      $http.post('/api/user/telegram/login', {
-        token,
-      }).then(() => {
-        $localStorage.user = {};
-        $localStorage.home.status = 'normal';
-        $state.go('user.index');
-      }).catch(() => {
-        $localStorage.home = {};
-        $localStorage.user = {};
-        $state.go('home.index');
-      });
-    }
-  ])
+  ($scope, $http, $state, $stateParams, $localStorage) => {
+    const mac = $stateParams.mac;
+    $http.post('/api/home/macLogin', {
+      mac,
+    }).then(() => {
+      $localStorage.home.status = 'normal';
+      $state.go('user.index');
+    }).catch(() => {
+      $state.go('home.index');
+    });
+  }
+])
 ;
