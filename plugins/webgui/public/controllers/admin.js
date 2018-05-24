@@ -1,12 +1,19 @@
 const app = angular.module('app');
 
-app.controller('AdminController', ['$scope', '$mdMedia', '$mdSidenav', '$state', '$http', '$document', '$interval', '$timeout', '$localStorage',
-  ($scope, $mdMedia, $mdSidenav, $state, $http, $document, $interval, $timeout, $localStorage) => {
-    if ($localStorage.home.status !== 'admin') {
+app.controller('AdminController', ['$scope', '$mdMedia', '$mdSidenav', '$state', '$http', '$document', '$interval', '$timeout', '$localStorage', 'configManager',
+  ($scope, $mdMedia, $mdSidenav, $state, $http, $document, $interval, $timeout, $localStorage, configManager) => {
+    const config = configManager.getConfig();
+    console.log(config);
+    if(config.status === 'normal') {
+      $state.go('user.index');
+    } else if(!config.status) {
       $state.go('home.index');
     } else {
       $scope.setMainLoading(false);
     }
+    $scope.setConfig(config);
+    $scope.setId(config.id);
+
     $scope.innerSideNav = true;
     $scope.sideNavWidth = () => {
       if($scope.innerSideNav) {
@@ -53,6 +60,7 @@ app.controller('AdminController', ['$scope', '$mdMedia', '$mdSidenav', '$state',
         $http.post('/api/home/logout').then(() => {
           $localStorage.home = {};
           $localStorage.admin = {};
+          configManager.deleteConfig();
           $state.go('home.index');
         });
       },

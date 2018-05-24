@@ -34,6 +34,10 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
           name: '修改密码',
           to: 'admin.passwordSetting',
         },
+        {
+          name: '邀请码',
+          to: 'admin.refSetting',
+        },
       ];
       if($scope.config.telegram) {
         $scope.settingList.push({
@@ -49,6 +53,10 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
       };
     } else {
       $scope.settingList = [
+        {
+          name: '邀请码',
+          to: 'admin.refSetting',
+        },
         {
           name: '修改密码',
           to: 'admin.passwordSetting',
@@ -81,7 +89,7 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
     }];
     let lastSave = 0;
     let lastSavePromise = null;
-    const saveTime = 3500;
+    const saveTime = 2000;
     $scope.saveSetting = () => {
       if(Date.now() - lastSave <= saveTime) {
         lastSavePromise && $timeout.cancel(lastSavePromise);
@@ -161,7 +169,7 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
     $scope.baseData = {};
     let lastSave = 0;
     let lastSavePromise = null;
-    const saveTime = 3500;
+    const saveTime = 2000;
     $scope.saveSetting = () => {
       if(Date.now() - lastSave <= saveTime) {
         lastSavePromise && $timeout.cancel(lastSavePromise);
@@ -392,7 +400,7 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
     };
     let lastSave = 0;
     let lastSavePromise = null;
-    const saveTime = 3500;
+    const saveTime = 2000;
     $scope.saveSetting = () => {
       if(Date.now() - lastSave <= saveTime) {
         lastSavePromise && $timeout.cancel(lastSavePromise);
@@ -464,6 +472,7 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
       $http.post('/api/admin/group', {
         name: $scope.group.name,
         comment: $scope.group.comment,
+        showNotice: $scope.group.showNotice,
       }, {
         timeout: 15000,
       }).then(success => {
@@ -491,6 +500,7 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
       $http.put(`/api/admin/group/${ $scope.groupId }`, {
         name: $scope.group.name,
         comment: $scope.group.comment,
+        showNotice: $scope.group.showNotice,
       }, {
         timeout: 15000,
       }).then(success => {
@@ -515,5 +525,198 @@ app.controller('AdminSettingsController', ['$scope', '$http', '$timeout', '$stat
       });
     };
   }
+]).controller('AdminRefSettingController', ['$scope', '$http', '$timeout', '$state',
+  ($scope, $http, $timeout, $state) => {
+    $scope.setTitle('邀请码管理');
+    $scope.setMenuButton('arrow_back', function() {
+      $state.go('admin.settings');
+    });
+    $scope.loading = true;
+    $scope.refSetting = {};
+
+    let lastSave = 0;
+    let lastSavePromise = null;
+    const saveTime = 2000;
+    $scope.saveSetting = () => {
+      if($scope.id !== 1) { return; }
+      if(Date.now() - lastSave <= saveTime) {
+        lastSavePromise && $timeout.cancel(lastSavePromise);
+      }
+      const timeout = Date.now() - lastSave >= saveTime ? 0 : saveTime - Date.now() + lastSave;
+      lastSave = Date.now();
+      lastSavePromise = $timeout(() => {
+        $http.put('/api/admin/setting/ref', {
+          data: $scope.refSetting,
+        });
+      }, timeout);
+    };
+    $http.get('/api/admin/setting/ref').then(success => {
+      $scope.refSetting = success.data;
+      $scope.loading = false;
+      $scope.$watch('refSetting', () => {
+        $scope.saveSetting();
+      }, true);
+    });
+    $scope.toRefCodeList = () => {
+      $state.go('admin.refCodeList');
+    };
+    $scope.toRefUserList = () => {
+      $state.go('admin.refUserList');
+    };
+    $scope.toMyRefCode = () => {
+      $state.go('admin.myRefCode');
+    };
+  }
+]).controller('AdminRefCodeListController', ['$scope', '$http', '$timeout', '$state', '$mdMedia',
+  ($scope, $http, $timeout, $state, $mdMedia) => {
+    $scope.setTitle('邀请码列表');
+    $scope.setMenuButton('arrow_back', function() {
+      $state.go('admin.refSetting');
+    });
+    $scope.currentPage = 1;
+    $scope.isCodeLoading = false;
+    $scope.isCodePageFinish = false;
+    $scope.code = [];
+    const getPageSize = () => {
+      if($mdMedia('xs')) { return 30; }
+      if($mdMedia('sm')) { return 30; }
+      if($mdMedia('md')) { return 60; }
+      if($mdMedia('gt-md')) { return 80; }
+    };
+    $scope.getCode = () => {
+      $scope.isCodeLoading = true;
+      $http.get('/api/admin/setting/ref/code', { params: {
+        page: $scope.currentPage,
+        pageSize: getPageSize(),
+      } }).then(success => success.data).then(success => {
+        $scope.total = success.total;
+        success.code.forEach(f => {
+          $scope.code.push(f);
+        });
+        if(success.maxPage > $scope.currentPage) {
+          $scope.currentPage++;
+        } else {
+          $scope.isCodePageFinish = true;
+        }
+        $scope.isCodeLoading = false;
+      }).catch(err => {
+        if($state.current.name !== 'admin.refCodeList') { return; }
+        $timeout(() => {
+          $scope.getCode();
+        }, 5000);
+      });
+    };
+
+    $scope.view = inview => {
+      if(!inview || $scope.isCodeLoading || $scope.isCodePageFinish) { return; }
+      $scope.getCode();
+    };
+
+    $scope.codeColor = code => {
+      if(code.count >= code.maxUser) {
+        return {
+          background: 'red-50', 'border-color': 'blue-300',
+        };
+      }
+      return {};
+    };
+    $scope.editRefCode = id => {
+      $state.go('admin.editRefCode', { id });
+    };
+  }
+]).controller('AdminEditRefCodeController', ['$scope', '$http', '$timeout', '$state', '$mdMedia', '$stateParams',
+($scope, $http, $timeout, $state, $mdMedia, $stateParams) => {
+  $scope.setTitle('编辑邀请码');
+  $scope.setMenuButton('arrow_back', function() {
+    $state.go('admin.refCodeList');
+  });
+  $scope.refCodeId = $stateParams.id;
+  $scope.refCode = {};
+  let lastSave = 0;
+  let lastSavePromise = null;
+  const saveTime = 2000;
+  $scope.saveSetting = () => {
+    if(!$scope.refCode.maxUser) { return; }
+    if(Date.now() - lastSave <= saveTime) {
+      lastSavePromise && $timeout.cancel(lastSavePromise);
+    }
+    const timeout = Date.now() - lastSave >= saveTime ? 0 : saveTime - Date.now() + lastSave;
+    lastSave = Date.now();
+    lastSavePromise = $timeout(() => {
+      $http.put(`/api/admin/setting/ref/code/${ $scope.refCodeId }`, {
+        maxUser: $scope.refCode.maxUser,
+      });
+    }, timeout);
+  };
+  $http.get(`/api/admin/setting/ref/code/${ $scope.refCodeId }`).then(success => {
+    $scope.refCode = success.data;
+    $scope.$watch('refCode', () => {
+      $scope.saveSetting();
+    }, true);
+  }).catch(err => {
+    $state.go('admin.refCodeList');
+  });
+  $scope.getRefUrl = code => `${ $scope.config.site }/home/ref/${ code }`;
+}
+]).controller('AdminRefUserListController', ['$scope', '$http', '$timeout', '$state', '$mdMedia',
+  ($scope, $http, $timeout, $state, $mdMedia) => {
+    $scope.setTitle('邀请用户列表');
+    $scope.setMenuButton('arrow_back', function() {
+      $state.go('admin.refSetting');
+    });
+    $scope.currentPage = 1;
+    $scope.isUserLoading = false;
+    $scope.isUserPageFinish = false;
+    $scope.user = [];
+    const getPageSize = () => {
+      if($mdMedia('xs')) { return 30; }
+      if($mdMedia('sm')) { return 30; }
+      if($mdMedia('md')) { return 60; }
+      if($mdMedia('gt-md')) { return 80; }
+    };
+    $scope.getUser = () => {
+      $scope.isUserLoading = true;
+      $http.get('/api/admin/setting/ref/user', { params: {
+        page: $scope.currentPage,
+        pageSize: getPageSize(),
+      } }).then(success => success.data).then(success => {
+        $scope.total = success.total;
+        success.user.forEach(f => {
+          $scope.user.push(f);
+        });
+        if(success.maxPage > $scope.currentPage) {
+          $scope.currentPage++;
+        } else {
+          $scope.isUserPageFinish = true;
+        }
+        $scope.isUserLoading = false;
+      }).catch(err => {
+        if($state.current.name !== 'admin.refUserList') { return; }
+        $timeout(() => {
+          $scope.getUser();
+        }, 5000);
+      });
+    };
+    $scope.view = inview => {
+      if(!inview || $scope.isUserLoading || $scope.isUserPageFinish) { return; }
+      $scope.getUser();
+    };
+    $scope.toUser = userId => {
+      $state.go('admin.userPage', { userId });
+    };
+  }
 ])
+.controller('AdminMyRefCodeController', ['$scope', '$http', '$timeout', '$state', '$mdMedia',
+  ($scope, $http, $timeout, $state, $mdMedia) => {
+    $scope.setTitle('我的邀请码');
+    $scope.setMenuButton('arrow_back', function() {
+      $state.go('admin.refSetting');
+    });
+    $http.get('/api/admin/ref/code').then(success => { $scope.code = success.data; });
+    $http.get('/api/admin/ref/user').then(success => { $scope.user = success.data; });
+    $scope.getRefUrl = code => {
+      return `${ $scope.config.site }/home/ref/${ code }`;
+    };
+  }
+]);
 ;

@@ -3,6 +3,7 @@ const logger = log4js.getLogger('account');
 const knex = appRequire('init/knex').knex;
 const serverManager = appRequire('plugins/flowSaver/server');
 const flow = appRequire('plugins/flowSaver/flow');
+const flowSaver = appRequire('plugins/flowSaver/flow');
 const manager = appRequire('services/manager');
 const moment = require('moment');
 const cron = appRequire('init/cron');
@@ -113,7 +114,7 @@ const checkFlow = async (server, accountId, startTime, endTime) => {
 const checkFlowFromAccountFlowTable = async (serverId, accountId) => {
   const where = { accountId };
   if(serverId) { where.serverId = serverId; }
-  const result = await knex('account_flow').sum('flow as sumFlow').groupBy('id').where(where).then(s => s[0]);
+  const result = await knex('account_flow').sum('flow as sumFlow').groupBy('accountId').where(where).then(s => s[0]);
   return result ? result.sumFlow : -1;
 };
 
@@ -133,6 +134,12 @@ const deleteCheckAccountTimeServer = serverId => {
   return knex('account_flow').update({
     nextCheckTime: Date.now(),
   }).where({ serverId });
+};
+
+const sleep = time => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => resolve(), time);
+  });
 };
 
 let lastCheck = 0;
@@ -174,6 +181,7 @@ const checkServer = async () => {
   server.forEach(s => {
     const checkServerAccount = async s => {
       try {
+        await sleep(Math.ceil(Math.random() * 45000));
         const port = await manager.send({ command: 'list' }, {
           host: s.host,
           port: s.port,
@@ -187,11 +195,6 @@ const checkServer = async () => {
           return !!port.list[number + s.shift];
         };
         const checkAccountStatus = async a => {
-          const sleep = time => {
-            return new Promise((resolve, reject) => {
-              setTimeout(() => resolve(), time);
-            });
-          };
           const sleepTime = Math.ceil(Math.random() * 120000);
           await sleep(sleepTime);
           const isMultiServerFlow = !!a.multiServerFlow;
@@ -238,7 +241,6 @@ const checkServer = async () => {
             }
             let flow = -1;
             let flow2 = -1;
-            // const accountFlowData = await getAccountFlow(s.id, a.id);
             if(!accountFlowData || (accountFlowData && Date.now() >= accountFlowData.nextCheckTime)) {
               flow = await checkFlow(s.id, a.id, startTime, Date.now());
               const nextTime = (data.flow * (isMultiServerFlow ? 1 : s.scale) - flow) / 200000000 * 60 * 1000;
@@ -250,7 +252,11 @@ const checkServer = async () => {
               } else {
                 nextCheckTime = Date.now() + nextTime;
               }
-              await setAccountFlow(s.id, a.id, flow, a.port + s.shift, nextCheckTime);
+              await setAccountFlow(
+                s.id, a.id,
+                isMultiServerFlow ? await flowSaver.getFlowFromSplitTime(s.id, a.id, startTime, Date.now()) : flow,
+                a.port + s.shift, nextCheckTime
+              );
             }
             if(flow === -1 && accountFlowData.updateTime && Date.now() - 15 * 60 * 1000 >= accountFlowData.checkTime) {
               flow2 = await checkFlowFromAccountFlowTable(isMultiServerFlow ? null : s.id, a.id);
@@ -263,9 +269,13 @@ const checkServer = async () => {
               } else {
                 nextCheckTime = Date.now() + nextTime;
               }
-              if(flow2 > -1) {
-                await setAccountFlow(s.id, a.id, flow2, a.port + s.shift, nextCheckTime);
-              }
+              // if(flow2 > -1) {
+              //   await setAccountFlow(
+              //     s.id, a.id,
+              //     isMultiServerFlow ? await checkFlowFromAccountFlowTable(s.id, a.id) : flow2,
+              //     a.port + s.shift, nextCheckTime
+              //   );
+              // }
             }
             if(flow >= 0 && isMultiServerFlow && flow >= data.flow) {
               port.exist(a.port) && delPort(a, s);
@@ -363,9 +373,9 @@ exports.changePassword = changePassword;
 exports.deleteCheckAccountTimePort = deleteCheckAccountTimePort;
 exports.deleteCheckAccountTimeServer = deleteCheckAccountTimeServer;
 
-setTimeout(() => {
-  checkServer();
-}, 8 * 1000);
+// setTimeout(() => {
+//   checkServer();
+// }, 8 * 1000);
 cron.minute(() => {
   checkServer();
 }, 2);

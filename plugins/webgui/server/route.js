@@ -28,6 +28,7 @@ const isUser = (req, res, next) => {
     return res.status(401).end();
   }
 };
+
 const isAdmin = (req, res, next) => {
   if (req.session.type === 'admin') {
     knex('user').where({ id: req.session.user, type: 'admin' }).then(s => s[0]).then(user => {
@@ -41,12 +42,13 @@ const isAdmin = (req, res, next) => {
 };
 
 const isSuperAdmin = (req, res, next) => {
-  if(req.session.user !== 1) { return res.status(403).end(); }
+  if(req.session.user !== 1) { return res.status(401).end(); }
   next();
 };
 
 app.get('/api/home/login', home.status);
 app.post('/api/home/code', home.sendCode);
+app.post('/api/home/ref/:refCode', home.visitRef);
 app.post('/api/home/signup', home.signup);
 app.post('/api/home/login', home.login);
 app.post('/api/home/macLogin', home.macLogin);
@@ -73,6 +75,7 @@ app.get('/api/admin/account/:accountId(\\d+)/ip', isAdmin, admin.getAccountIpFro
 app.post('/api/admin/account', isAdmin, isSuperAdmin, admin.addAccount);
 app.put('/api/admin/account/:accountId(\\d+)/port', isAdmin, isSuperAdmin, admin.changeAccountPort);
 app.put('/api/admin/account/:accountId(\\d+)/data', isAdmin, isSuperAdmin, admin.changeAccountData);
+app.put('/api/admin/account/:accountId(\\d+)/time', isAdmin, isSuperAdmin, admin.changeAccountTime);
 app.delete('/api/admin/account/:accountId(\\d+)', isAdmin, isSuperAdmin, admin.deleteAccount);
 app.post('/api/admin/account/:accountId(\\d+)/resetFlow', isAdmin, isSuperAdmin, admin.resetAccountFlow);
 
@@ -82,6 +85,7 @@ app.put('/api/admin/account/mac', isAdmin, adminAccount.editMacAccount);
 app.delete('/api/admin/account/mac', isAdmin, adminAccount.deleteMacAccount);
 
 app.get('/api/user/account/mac/:macAddress', adminAccount.getMacAccountForUser);
+app.get('/api/user/notice/mac/:macAddress', adminAccount.getNoticeForUser);
 
 app.get('/api/admin/flow/:serverId(\\d+)', isAdmin, adminFlow.getServerFlow);
 app.get('/api/admin/flow/top', isAdmin, adminFlow.getTopFlow);
@@ -126,6 +130,14 @@ app.get('/api/admin/setting/base', isAdmin, isSuperAdmin, adminSetting.getBase);
 app.put('/api/admin/setting/base', isAdmin, isSuperAdmin, adminSetting.modifyBase);
 app.get('/api/admin/setting/mail', isAdmin, isSuperAdmin, adminSetting.getMail);
 app.put('/api/admin/setting/mail', isAdmin, isSuperAdmin, adminSetting.modifyMail);
+app.get('/api/admin/setting/ref', isAdmin, adminSetting.getRef);
+app.put('/api/admin/setting/ref', isAdmin, isSuperAdmin, adminSetting.modifyRef);
+app.get('/api/admin/setting/ref/code', isAdmin, isSuperAdmin, adminSetting.getRefCode);
+app.get('/api/admin/setting/ref/code/:id(\\d+)', isAdmin, isSuperAdmin, adminSetting.getOneRefCode);
+app.put('/api/admin/setting/ref/code/:id(\\d+)', isAdmin, isSuperAdmin, adminSetting.editOneRefCode);
+app.get('/api/admin/setting/ref/user', isAdmin, isSuperAdmin, adminSetting.getRefUser);
+app.get('/api/admin/ref/code', isAdmin, user.getRefCode);
+app.get('/api/admin/ref/user', isAdmin, user.getRefUser);
 
 app.get('/api/admin/giftcard', isAdmin, adminGiftCard.getOrders);
 app.get('/api/admin/giftcard/list', isAdmin, adminGiftCard.listBatch);
@@ -166,6 +178,9 @@ app.post('/api/user/alipay/callback', user.alipayCallback);
 app.post('/api/user/paypal/callback', user.paypalCallback);
 
 app.post('/api/user/changePassword', isUser, user.changePassword);
+
+app.get('/api/user/ref/code', isUser, user.getRefCode);
+app.get('/api/user/ref/user', isUser, user.getRefUser);
 
 if (config.plugins.webgui_telegram && config.plugins.webgui_telegram.use) {
   const telegram = appRequire('plugins/webgui_telegram/account');
@@ -216,20 +231,13 @@ app.get('/manifest.json', (req, res) => {
     return success[0].value;
   }).then(success => {
     manifest.name = success.title;
+    if(success.shortTitle) { manifest.short_name = success.shortTitle; }
     return res.json(manifest);
   });
 });
 
 const version = appRequire('package').version;
-const configForFrontend = {
-  site: config.plugins.webgui.site,
-  alipay: config.plugins.alipay && config.plugins.alipay.use,
-  paypal: config.plugins.paypal && config.plugins.paypal.use,
-  paypalMode: config.plugins.paypal && config.plugins.paypal.mode,
-  macAccount: config.plugins.macAccount && config.plugins.macAccount.use,
-  telegram: config.plugins.webgui_telegram && config.plugins.webgui_telegram.use,
-  giftcard: config.plugins.giftcard && config.plugins.giftcard.use,
-};
+const configForFrontend = {};
 
 const cdn = config.plugins.webgui.cdn;
 const analytics = config.plugins.webgui.googleAnalytics || '';
@@ -255,8 +263,6 @@ const colors = [
   { value: 'grey', color: '#9E9E9E' },
 ];
 const homePage = (req, res) => {
-  let id = -1;
-  if(req.session && req.session.user) { id = req.session.user; }
   return knex('webguiSetting').select().where({
     key: 'base',
   }).then(success => {
@@ -266,15 +272,12 @@ const homePage = (req, res) => {
     success[0].value = JSON.parse(success[0].value);
     return success[0].value;
   }).then(success => {
-    configForFrontend.id = id;
     configForFrontend.themePrimary = success.themePrimary;
     configForFrontend.themeAccent = success.themeAccent;
     const filterColor = colors.filter(f => f.value === success.themePrimary);
     configForFrontend.browserColor = filterColor[0] ? filterColor[0].color : '#3F51B5';
-    configForFrontend.skin = config.plugins.webgui.skin || 'default';
     return res.render('index', {
       title: success.title,
-      version,
       cdn,
       analytics,
       config: configForFrontend,

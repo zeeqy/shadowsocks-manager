@@ -8,6 +8,14 @@ app.config(['$stateProvider', $stateProvider => {
       url: '/home',
       abstract: true,
       templateUrl: `${ cdn }/public/views/home/home.html`,
+      resolve: {
+        myConfig: ['$http', 'configManager', ($http, configManager) => {
+          if(configManager.getConfig().version) { return; }
+          return $http.get('/api/home/login').then(success => {
+            configManager.setConfig(success.data);
+          });
+        }]
+      },
     })
     .state('home.index', {
       url: '/index',
@@ -38,6 +46,11 @@ app.config(['$stateProvider', $stateProvider => {
       url: '/password/reset/:token',
       controller: 'HomeResetPasswordController',
       templateUrl: `${ cdn }/public/views/home/resetPassword.html`,
+    })
+    .state('home.ref', {
+      url: '/ref/:refId',
+      controller: 'HomeRefController',
+      templateUrl: `${ cdn }/public/views/home/ref.html`,
     });
   }
 ]);

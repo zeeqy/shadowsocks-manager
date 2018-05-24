@@ -7,6 +7,8 @@ const config = appRequire('services/config').all();
 const giftcard = appRequire('plugins/giftcard');
 const log4js = require('log4js');
 const logger = log4js.getLogger('webgui');
+const ref = appRequire('plugins/webgui_ref/index');
+const refUser = appRequire('plugins/webgui_ref/user');
 
 const alipay = appRequire('plugins/alipay/index');
 
@@ -158,16 +160,6 @@ exports.getServerPortFlow = (req, res) => {
         }
       }
       return flow.getServerPortFlow(serverId, accountId, timeArray, account.multiServerFlow);
-      // return knex('webguiSetting').select().where({ key: 'account' })
-      //   .then(success => {
-      //     if (!success.length) {
-      //       return Promise.reject('settings not found');
-      //     }
-      //     success[0].value = JSON.parse(success[0].value);
-      //     return success[0].value.multiServerFlow;
-      //   }).then(isMultiServerFlow => {
-      //     return flow.getServerPortFlow(serverId, accountId, timeArray, isMultiServerFlow);
-      //   });
     } else {
       return [0];
     }
@@ -286,13 +278,31 @@ exports.getPrice = (req, res) => {
   });
 };
 
-exports.getNotice = (req, res) => {
-  knex('notice').select().orderBy('time', 'desc').then(success => {
-    return res.send(success);
-  }).catch(err => {
+exports.getNotice = async (req, res) => {
+  try {
+    const userId = req.session.user;
+    const groupInfo = await knex('user').select([
+      'group.id as id',
+      'group.showNotice as showNotice',
+    ]).innerJoin('group', 'user.group', 'group.id').where({
+      'user.id': userId,
+    }).then(s => s[0]);
+    const group = [groupInfo.id];
+    if(groupInfo.showNotice) { group.push(-1); }
+    const notices = await knex('notice').select().whereIn('group', group).orderBy('time', 'desc');
+    return res.send(notices);
+  } catch (err) {
     console.log(err);
     res.status(403).end();
-  });
+  }
+  
+  
+  // knex('notice').select().orderBy('time', 'desc').then(success => {
+  //   return res.send(success);
+  // }).catch(err => {
+  //   console.log(err);
+  //   res.status(403).end();
+  // });
 };
 
 exports.getAlipayStatus = (req, res) => {
@@ -420,4 +430,27 @@ exports.payByGiftCard = async (req, resp) => {
     logger.error(`使用充值码时出现错误：${err.toString()}`);
     resp.status(500).end();
   }
+};
+
+exports.getRefCode = (req, res) => {
+  const userId = +req.session.user;
+  refUser.getRefCode(userId).then(success => {
+    const result = success.filter(f => {
+      return f.count < f.maxUser;
+    });
+    res.send(result);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.getRefUser = (req, res) => {
+  const userId = +req.session.user;
+  refUser.getRefUser(userId).then(success => {
+    res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
 };

@@ -1,5 +1,7 @@
 const knex = appRequire('init/knex').knex;
 const user = appRequire('plugins/user/index');
+const ref = appRequire('plugins/webgui_ref/index');
+const refAdmin = appRequire('plugins/webgui_ref/admin');
 
 const setDefaultValue = (key, value) => {
   knex('webguiSetting').select().where({
@@ -33,6 +35,7 @@ setDefaultValue('account', {
 });
 setDefaultValue('base', {
   title: 'Shadowsocks-Manager',
+  shortTitle: 'ssmgr',
   themeAccent: 'pink',
   themePrimary: 'blue',
   serviceWorker: false,
@@ -254,6 +257,86 @@ exports.unbindTelegram = (req, res) => {
   const userId = req.session.user;
   telegramUser.unbindUser(userId).then(success => {
     res.send('success');
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.getRef = (req, res) => {
+  knex('webguiSetting').select().where({
+    key: 'webgui_ref',
+  }).then(success => {
+    if(!success.length) {
+      return Promise.reject('settings not found');
+    }
+    success[0].value = JSON.parse(success[0].value);
+    return success[0].value;
+  }).then(success => {
+    return res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.modifyRef = (req, res) => {
+  const data = req.body.data;
+  knex('webguiSetting').update({
+    value: JSON.stringify(data)
+  }).where({
+    key: 'webgui_ref',
+  }).then(success => {
+    return res.send('success');
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.getRefCode = (req, res) => {
+  const page = +req.query.page || 1;
+  const pageSize = +req.query.pageSize || 20;
+  refAdmin.getRefCodeAndPaging({
+    page,
+    pageSize,
+  }).then(success => {
+    return res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.getOneRefCode = (req, res) => {
+  const id = req.params.id;
+  refAdmin.getOneRefCode(id).then(success => {
+    return res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.editOneRefCode = (req, res) => {
+  const id = +req.params.id;
+  const maxUser = +req.body.maxUser;
+  refAdmin.editOneRefCode(id, maxUser).then(success => {
+    return res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.getRefUser = (req, res) => {
+  const page = +req.query.page || 1;
+  const pageSize = +req.query.pageSize || 20;
+  refAdmin.getRefUserAndPaging({
+    page,
+    pageSize,
+  }).then(success => {
+    return res.send(success);
   }).catch(err => {
     console.log(err);
     res.status(403).end();

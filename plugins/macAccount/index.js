@@ -4,6 +4,14 @@ const accountPlugin = appRequire('plugins/account/index');
 const flow = appRequire('plugins/flowSaver/flow');
 const dns = require('dns');
 const net = require('net');
+const config = appRequire('services/config').all();
+
+const getFlow = async (serverId, accountId) => {
+  const where = { accountId };
+  if(serverId) { where.serverId = serverId; }
+  const result = await knex('account_flow').sum('flow as sumFlow').groupBy('accountId').where(where).then(s => s[0]);
+  return result ? result.sumFlow : -1;
+};
 
 const formatMacAddress = mac => {
   return mac.replace(/-/g, '').replace(/:/g, '').toLowerCase();
@@ -18,17 +26,20 @@ const scanLoginLog = ip => {
   }
   if(!loginLog[ip]) {
     return false;
-  } else if (loginLog[ip].number <= 5) {
+  } else if (loginLog[ip].mac.length <= 10) {
     return false;
   } else {
     return true;
   }
 };
-const loginFail = ip => {
+const loginFail = (mac, ip) => {
   if(!loginLog[ip]) {
-    loginLog[ip] = { number: 1, time: Date.now() };
+    loginLog[ip] = { mac: [ mac ], time: Date.now() };
   } else {
-    loginLog[ip] = { number: loginLog[ip].number + 1, time: Date.now() };
+    if(loginLog[ip].mac.indexOf(mac) < 0) {
+      loginLog[ip].mac.push(mac);
+      loginLog[ip].time = Date.now();
+    }
   }
 };
 
@@ -87,13 +98,37 @@ const getAccount = async (userId, group) => {
   return macAccounts;
 };
 
-const getAccountForUser = async (mac, ip) => {
+const getNoticeForUser = async (mac, ip) => {
   if(scanLoginLog(ip)) {
     return Promise.reject('ip is in black list');
   }
   const macAccount = await knex('mac_account').where({ mac }).then(success => success[0]);
   if(!macAccount) {
-    loginFail(ip);
+    loginFail(mac, ip);
+    return Promise.reject('mac account not found');
+  }
+  const userId = macAccount.userId;
+  const groupInfo = await knex('user').select([
+    'group.id as id',
+    'group.showNotice as showNotice',
+  ]).innerJoin('group', 'user.group', 'group.id').where({
+    'user.id': userId,
+  }).then(s => s[0]);
+  const group = [groupInfo.id];
+  if(groupInfo.showNotice) { group.push(-1); }
+  const notices = await knex('notice').select().whereIn('group', group).orderBy('time', 'desc');
+  return notices;
+};
+
+const getAccountForUser = async (mac, ip, opt) => {
+  const noPassword = opt.noPassword;
+  const noFlow = opt.noFlow;
+  if(scanLoginLog(ip)) {
+    return Promise.reject('ip is in black list');
+  }
+  const macAccount = await knex('mac_account').where({ mac }).then(success => success[0]);
+  if(!macAccount) {
+    loginFail(mac, ip);
     return Promise.reject('mac account not found');
   }
   await getAccount(macAccount.userId);
@@ -157,8 +192,9 @@ const getAccountForUser = async (mac, ip) => {
       };
       return serverInfo;
     }).then(success => {
-      if(startTime) {
-        return flow.getFlowFromSplitTime(isMultiServerFlow ? null : success.id, account.accountId, startTime, Date.now());
+      if(startTime && !noFlow) {
+        return getFlow(isMultiServerFlow ? null : success.id, account.accountId);
+        // return flow.getFlowFromSplitTime(isMultiServerFlow ? null : success.id, account.accountId, startTime, Date.now());
       } else {
         return -1;
       }
@@ -170,12 +206,22 @@ const getAccountForUser = async (mac, ip) => {
         serverInfo.flow = -1;
       }
       serverInfo.expire = expire || null;
+      return knex('account_flow').select(['status']).where({
+        serverId: f.id,
+        accountId: account.accountId,
+      }).then(s => {
+        if(!s.length) { return 'checked'; }
+        return s[0].status;
+      });
+    }).then(success => {
+      serverInfo.status = success;
       return serverInfo;
     });
   });
   const serverReturn = await Promise.all(serverList);
   const data = {
     default: {
+      site: config.plugins.macAccount.site || config.plugins.webgui.site,
       id: server.id,
       name: server.name,
       address,
@@ -186,6 +232,9 @@ const getAccountForUser = async (mac, ip) => {
     },
     servers: serverReturn,
   };
+  if(noPassword) {
+    delete data.default.password;
+  }
   if(!serverReturn.filter(f => f.name === server.name)[0]) {
     data.default.name = serverReturn[0].name;
     data.default.address = serverReturn[0].address;
@@ -211,7 +260,7 @@ const login = async (mac, ip) => {
     mac: formatMacAddress(mac)
   }).then(success => success[0]);
   if(!account) {
-    loginFail(ip);
+    loginFail(mac, ip);
     return Promise.reject('mac account not found');
   } else {
     return account;
@@ -271,6 +320,7 @@ exports.newAccount = newAccount;
 exports.getAccount = getAccount;
 exports.deleteAccount = deleteAccount;
 exports.getAccountForUser = getAccountForUser;
+exports.getNoticeForUser = getNoticeForUser;
 exports.login = login;
 exports.getAccountByAccountId = getAccountByAccountId;
 exports.getAllAccount = getAllAccount;

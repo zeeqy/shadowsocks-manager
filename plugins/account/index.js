@@ -91,7 +91,9 @@ const delAccount = async id => {
 };
 
 const editAccount = async (id, options) => {
-  await checkAccount.deleteCheckAccountTimePort(options.port);
+  if(options.port) {
+    await checkAccount.deleteCheckAccountTimePort(options.port);
+  }
   const account = await knex('account_plugin').select().where({ id }).then(success => {
     if(success.length) {
       return success[0];
@@ -103,24 +105,50 @@ const editAccount = async (id, options) => {
   update.userId = options.userId;
   update.autoRemove = options.autoRemove;
   update.multiServerFlow = options.multiServerFlow;
-  // update.server = options.server ? JSON.stringify(options.server) : null;
   if(options.hasOwnProperty('server')) {
     update.server = options.server ? JSON.stringify(options.server) : null;
   }
   if(options.type === 1) {
     update.data = null;
-    update.port = +options.port;
+    // update.port = +options.port;
   } else if(options.type >= 2 && options.type <= 5) {
     update.data = JSON.stringify({
       create: options.time || Date.now(),
       flow: options.flow || 1 * 1000 * 1000 * 1000,
       limit: options.limit || 1,
     });
+    // update.port = +options.port;
+  }
+  if(options.port) {
     update.port = +options.port;
   }
   await knex('account_plugin').update(update).where({ id });
   await checkAccount.checkServer();
   return;
+};
+
+const editAccountTime = async (id, timeString, check) => {
+  const time = +timeString;
+  let accountInfo = await knex('account_plugin').where({ id }).then(s => s[0]);
+  accountInfo.data = JSON.parse(accountInfo.data);
+  if(accountInfo.type < 2 || accountInfo.type > 5) { return; }
+  const timePeriod = {
+    '2': 7 * 86400 * 1000,
+    '3': 30 * 86400 * 1000,
+    '4': 1 * 86400 * 1000,
+    '5': 3600 * 1000,
+  };
+  accountInfo.data.create += time;
+  while(time > 0 && accountInfo.data.create >= Date.now()) {
+    accountInfo.data.limit += 1;
+    accountInfo.data.create -= timePeriod[accountInfo.type];
+  }
+  await knex('account_plugin').update({
+    data: JSON.stringify(accountInfo.data)
+  }).where({ id });
+  if(check) {
+    await checkAccount.deleteCheckAccountTimePort(accountInfo.port);
+  }
 };
 
 const changePassword = async (id, password) => {
@@ -385,6 +413,7 @@ exports.addAccount = addAccount;
 exports.getAccount = getAccount;
 exports.delAccount = delAccount;
 exports.editAccount = editAccount;
+exports.editAccountTime = editAccountTime;
 
 exports.changePassword = changePassword;
 exports.changePort = changePort;

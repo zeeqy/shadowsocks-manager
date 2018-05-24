@@ -150,7 +150,7 @@ exports.changeAccountData = (req, res) => {
   const accountId = req.params.accountId;
   account.editAccount(accountId, {
     type: req.body.type,
-    port: +req.body.port,
+    port: req.body.port,
     password: req.body.password,
     time: req.body.time,
     limit: +req.body.limit,
@@ -162,6 +162,18 @@ exports.changeAccountData = (req, res) => {
     if(req.body.cleanFlow) {
       flow.cleanAccountFlow(accountId);
     }
+    res.send('success');
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.changeAccountTime = (req, res) => {
+  const accountId = req.params.accountId;
+  const time = req.body.time;
+  const check = req.body.check;
+  account.editAccountTime(accountId, time, check).then(success => {
     res.send('success');
   }).catch(err => {
     console.log(err);

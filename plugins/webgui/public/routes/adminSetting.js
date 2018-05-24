@@ -89,6 +89,31 @@ app.config(['$stateProvider', $stateProvider => {
       controller: 'AdminEditGroupController',
       templateUrl: `${ cdn }/public/views/admin/editGroup.html`
     })
+    .state('admin.refSetting', {
+      url: '/settings/ref',
+      controller: 'AdminRefSettingController',
+      templateUrl: `${ cdn }/public/views/admin/refSetting.html`
+    })
+    .state('admin.refCodeList', {
+      url: '/settings/refCodeList',
+      controller: 'AdminRefCodeListController',
+      templateUrl: `${ cdn }/public/views/admin/refCodeList.html`
+    })
+    .state('admin.editRefCode', {
+      url: '/settings/refCode/:id',
+      controller: 'AdminEditRefCodeController',
+      templateUrl: `${ cdn }/public/views/admin/editRefCode.html`
+    })
+    .state('admin.refUserList', {
+      url: '/settings/refUserList',
+      controller: 'AdminRefUserListController',
+      templateUrl: `${ cdn }/public/views/admin/refUserList.html`
+    })
+    .state('admin.myRefCode', {
+      url: '/settings/myRefCode',
+      controller: 'AdminMyRefCodeController',
+      templateUrl: `${ cdn }/public/views/admin/myRefCode.html`
+    })
     ;
   }
 ]);
