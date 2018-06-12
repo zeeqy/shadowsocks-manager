@@ -46,7 +46,6 @@ app
   ])
   .controller('HomeIndexController', ['$scope', '$state',
     ($scope, $state) => {
-<<<<<<< HEAD
       $scope.icons = [{
         icon: 'headset',
         title: '小圈子主义',
@@ -60,8 +59,6 @@ app
         title: '高效稳定',
         content: '多服务器支持，高峰期速度保证',
       }];
-=======
->>>>>>> upstream/master
       $scope.login = () => { $state.go('home.login'); };
       $scope.signup = () => { $state.go('home.signup'); };
     }
@@ -106,13 +103,8 @@ app
       };
     }
   ])
-<<<<<<< HEAD
-  .controller('HomeSignupController', ['$scope', '$state', '$interval', '$timeout', 'homeApi', 'alertDialog',
-    ($scope, $state, $interval, $timeout, homeApi, alertDialog) => {
-=======
   .controller('HomeSignupController', ['$scope', '$state', '$interval', '$timeout', 'homeApi', 'alertDialog', '$localStorage', 'configManager',
     ($scope, $state, $interval, $timeout, homeApi, alertDialog, $localStorage, configManager) => {
->>>>>>> upstream/master
       $scope.user = {};
       $scope.sendCodeTime = 0;
       $scope.sendCode = () => {
@@ -138,11 +130,6 @@ app
         alertDialog.loading().then(() => {
           return homeApi.userSignup($scope.user.email, $scope.user.code, $scope.user.password, $scope.home.refId);
         })
-<<<<<<< HEAD
-        .then(success => {
-          alertDialog.show('用户注册成功', '确定').then(success => {
-            $state.go('home.login');
-=======
         .then(userType => {
           alertDialog.show('用户注册成功', '确定').then(success => {
             configManager.deleteConfig();
@@ -151,7 +138,6 @@ app
             } else {
               $state.go('user.index');
             }
->>>>>>> upstream/master
           });
         }).catch(err => {
           alertDialog.show(err, '确定');

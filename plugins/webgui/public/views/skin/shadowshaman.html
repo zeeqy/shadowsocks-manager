@@ -1,0 +1,23 @@
+<div layout="column" layout-align="center center">
+    <div layout="column" layout-align="center center" style="background-color: #ffffff; width: 100%;">
+        <img src="/favicon.png" style="margin: 5vw; width: 300px;"></img>
+    </div>
+    <div layout="row" layout-xs="column" style="background-color: #ffffff; width: 100%;">
+        <div layout="column" layout-align="center center"
+            style="width: 90%; margin: 35px 15px 35px 15px;"
+            ng-repeat="icon in icons">
+            <div flex="5"></div>
+            <md-icon class="material-icons" md-colors="{ color: 'default-primary-500'}" style="font-size: 84px; height: 108px; position: relative; left: -32px;">
+                {{ icon.icon }}
+            </md-icon>
+            <h2 translate>{{ icon.title }}</h2>
+            <div translate style="height: 50px;">{{ icon.content }}</div>
+            <div flex="5"></div>
+        </div>
+    </div>
+</div>
+<a href="https://blinkdagger.io"><md-icon class="material-icons" style="font-size: 50px; width: 50px; height: 50px; position: absolute; top: 0; right: 0; border: 0; z-index: 9;">
+turned_in
+</md-icon>
+</a>
+
