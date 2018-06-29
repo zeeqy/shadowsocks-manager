@@ -4,11 +4,10 @@ app
 .controller('UserController', ['$scope', '$mdMedia', '$mdSidenav', '$state', '$http', '$interval', '$localStorage', 'userApi', 'configManager',
   ($scope, $mdMedia, $mdSidenav, $state, $http, $interval, $localStorage, userApi, configManager) => {
     const config = configManager.getConfig();
-    console.log(config);
     if(config.status === 'admin') {
-      $state.go('admin.index');
+      return $state.go('admin.index');
     } else if(!config.status) {
-      $state.go('home.index');
+      return $state.go('home.index');
     } else {
       $scope.setMainLoading(false);
     }
@@ -362,5 +361,9 @@ app
     $http.get('/api/user/ref/code').then(success => { $scope.code = success.data; });
     $http.get('/api/user/ref/user').then(success => { $scope.user = success.data; });
     $scope.getRefUrl = code => `${ $scope.config.site }/home/ref/${ code }`;
+    $scope.clipboardSuccess = event => {
+      console.log(event);
+      $scope.toast('邀请链接已复制到剪贴板');
+    };
   }
 ]);

@@ -3,11 +3,10 @@ const app = angular.module('app');
 app.controller('AdminController', ['$scope', '$mdMedia', '$mdSidenav', '$state', '$http', '$document', '$interval', '$timeout', '$localStorage', 'configManager',
   ($scope, $mdMedia, $mdSidenav, $state, $http, $document, $interval, $timeout, $localStorage, configManager) => {
     const config = configManager.getConfig();
-    console.log(config);
     if(config.status === 'normal') {
-      $state.go('user.index');
+      return $state.go('user.index');
     } else if(!config.status) {
-      $state.go('home.index');
+      return $state.go('home.index');
     } else {
       $scope.setMainLoading(false);
     }
@@ -176,8 +175,8 @@ app.controller('AdminController', ['$scope', '$mdMedia', '$mdSidenav', '$state',
     });
   }
 ])
-.controller('AdminIndexController', ['$scope', '$state', 'adminApi', '$localStorage', '$interval', 'orderDialog', '$http',
-  ($scope, $state, adminApi, $localStorage, $interval, orderDialog, $http) => {
+.controller('AdminIndexController', ['$scope', '$state', 'adminApi', '$localStorage', '$interval', 'orderDialog',
+  ($scope, $state, adminApi, $localStorage, $interval, orderDialog) => {
     $scope.setTitle('首页');
     if($localStorage.admin.indexInfo) {
       $scope.signupUsers = $localStorage.admin.indexInfo.data.signup;
@@ -240,6 +239,7 @@ app.controller('AdminController', ['$scope', '$mdMedia', '$mdSidenav', '$state',
     if($scope.config.alipay) { $scope.payTypes.push({ name: '支付宝' }); }
     if($scope.config.paypal) { $scope.payTypes.push({ name: 'Paypal' }); }
     if($scope.config.giftcard) { $scope.payTypes.push({ name: '充值码' }); }
+    if($scope.config.refCode) { $scope.payTypes.push({ name: '邀请码' }); }
     if($scope.payTypes.length) { $scope.myPayType = $scope.payTypes[0].name; }
     $scope.selectPayType = type => {
       tabSwitchTime = Date.now();

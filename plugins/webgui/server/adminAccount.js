@@ -1,9 +1,7 @@
 const macAccount = appRequire('plugins/macAccount/index');
 const account = appRequire('plugins/account/index');
 
-const formatMacAddress = mac => {
-  return mac.replace(/-/g, '').replace(/:/g, '').toLowerCase();
-};
+const formatMacAddress = mac => mac.replace(/-/g, '').replace(/:/g, '').toLowerCase();
 
 exports.getMacAccount = (req, res) => {
   const userId = +req.query.userId;
@@ -105,6 +103,23 @@ exports.getBanAccount = (req, res) => {
     accountId,
   }).then(success => {
     res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(403).end();
+  });
+};
+
+exports.getSubscribeAccountForUser = (req, res) => {
+  const mac = req.params.macAddress;
+  const ip = req.headers['x-real-ip'] || req.connection.remoteAddress;
+  macAccount.getAccountForUser(mac.toLowerCase(), ip, {
+    noPassword: 0,
+    noFlow: 1,
+  }).then(success => {
+    const result = success.servers.map(server => {
+      return 'ss://' + Buffer.from(server.method + ':' + success.default.password + '@' + server.address + ':' + server.port).toString('base64') + '#' + Buffer.from(server.name).toString('base64');
+    }).join('\r\n');
+    res.send(Buffer.from(result).toString('base64'));
   }).catch(err => {
     console.log(err);
     res.status(403).end();

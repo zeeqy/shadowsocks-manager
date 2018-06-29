@@ -1,6 +1,7 @@
 const app = angular.module('app');
 
-app.factory('adminApi', ['$http', '$q', 'moment', 'preload', '$timeout', ($http, $q, moment, preload, $timeout) => {
+app.factory('adminApi', ['$http', '$q', 'moment', 'preload', '$timeout', 'configManager', ($http, $q, moment, preload, $timeout, configManager) => {
+  const config = configManager.getConfig();
   const getUser = (opt = {}) => {
     const search = opt.search || '';
     // const filter = opt.filter || 'all';
@@ -33,6 +34,7 @@ app.factory('adminApi', ['$http', '$q', 'moment', 'preload', '$timeout', ($http,
     if(payType === '支付宝') { url = '/api/admin/alipay'; }
     if(payType === 'Paypal') { url = '/api/admin/paypal'; }
     if(payType === '充值码') { url = '/api/admin/giftcard'; }
+    if(payType === '邀请码') { url = '/api/admin/refOrder'; }
     const search = opt.search || '';
     const filter = opt.filter || '';
     // const sort = opt.sort || 'alipay.createTime_desc';
@@ -144,31 +146,24 @@ app.factory('adminApi', ['$http', '$q', 'moment', 'preload', '$timeout', ($http,
   };
 
   const getUserData = userId => {
-    const macAccount = window.ssmgrConfig.macAccount;
     const promises = [
       $http.get('/api/admin/user/' + userId),
       $http.get('/api/admin/alipay/' + userId),
       $http.get('/api/admin/paypal/' + userId),
+      $http.get('/api/admin/refOrder/' + userId),
+      config.giftcard ? $http.get('/api/admin/giftcard/' + userId) : $q.resolve({ data: [] }),
       $http.get('/api/admin/server'),
+      $http.get('/api/admin/account/mac', { params: { userId } }),
     ];
-    if(macAccount) {
-      promises.push($http.get('/api/admin/account/mac', {
-        params: {
-          userId,
-        }
-      }));
-    } else {
-      promises.push($q.resolve({
-        data: [],
-      }));
-    }
     return $q.all(promises).then(success => {
       return {
         user: success[0].data,
         alipayOrders: success[1].data,
         paypalOrders: success[2].data,
-        server: success[3].data,
-        macAccount: success[4].data,
+        refOrders: success[3].data,
+        giftCardOrders: success[4].data,
+        server: success[5].data,
+        macAccount: success[6].data,
       };
     });
   };

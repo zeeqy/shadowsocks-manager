@@ -85,6 +85,7 @@ app.put('/api/admin/account/mac', isAdmin, adminAccount.editMacAccount);
 app.delete('/api/admin/account/mac', isAdmin, adminAccount.deleteMacAccount);
 
 app.get('/api/user/account/mac/:macAddress', adminAccount.getMacAccountForUser);
+app.get('/api/user/account/subscribe/:macAddress', adminAccount.getSubscribeAccountForUser);
 app.get('/api/user/notice/mac/:macAddress', adminAccount.getNoticeForUser);
 
 app.get('/api/admin/flow/:serverId(\\d+)', isAdmin, adminFlow.getServerFlow);
@@ -116,6 +117,9 @@ app.get('/api/admin/paypal', isAdmin, admin.getPaypalOrders);
 app.get('/api/admin/paypal/recentOrder', isAdmin, admin.getPaypalRecentOrders);
 app.get('/api/admin/paypal/:userId(\\d+)', isAdmin, admin.getPaypalUserOrders);
 
+app.get('/api/admin/refOrder', isAdmin, admin.getRefOrders);
+app.get('/api/admin/refOrder/:userId(\\d+)', isAdmin, admin.getUserRefOrders);
+
 app.get('/api/admin/notice', isAdmin, isSuperAdmin, adminNotice.getNotice);
 app.get('/api/admin/notice/:noticeId(\\d+)', isAdmin, isSuperAdmin, adminNotice.getOneNotice);
 app.post('/api/admin/notice', isAdmin, isSuperAdmin, adminNotice.addNotice);
@@ -124,7 +128,7 @@ app.delete('/api/admin/notice/:noticeId(\\d+)', isAdmin, isSuperAdmin, adminNoti
 
 app.get('/api/admin/setting/payment', isAdmin, isSuperAdmin, adminSetting.getPayment);
 app.put('/api/admin/setting/payment', isAdmin, isSuperAdmin, adminSetting.modifyPayment);
-app.get('/api/admin/setting/account', isAdmin, isSuperAdmin, adminSetting.getAccount);
+app.get('/api/admin/setting/account', isAdmin, adminSetting.getAccount);
 app.put('/api/admin/setting/account', isAdmin, isSuperAdmin, adminSetting.modifyAccount);
 app.get('/api/admin/setting/base', isAdmin, isSuperAdmin, adminSetting.getBase);
 app.put('/api/admin/setting/base', isAdmin, isSuperAdmin, adminSetting.modifyBase);
@@ -140,10 +144,12 @@ app.get('/api/admin/ref/code', isAdmin, user.getRefCode);
 app.get('/api/admin/ref/user', isAdmin, user.getRefUser);
 
 app.get('/api/admin/giftcard', isAdmin, adminGiftCard.getOrders);
+app.get('/api/admin/giftcard/:userId(\\d+)', isAdmin, adminGiftCard.getUserOrders);
 app.get('/api/admin/giftcard/list', isAdmin, adminGiftCard.listBatch);
 app.get('/api/admin/giftcard/details/:batchNumber(\\d+)', isAdmin, adminGiftCard.getBatchDetails);
 app.post('/api/admin/giftcard/revoke', isAdmin, adminGiftCard.revokeBatch);
 app.post('/api/admin/giftcard/add', isAdmin, adminGiftCard.addGiftCard);
+app.post('/api/admin/giftcard/use', isAdmin, isSuperAdmin, adminGiftCard.useGiftCardForUser);
 
 app.get('/api/admin/group', isAdmin, adminGroup.getGroups);
 app.get('/api/admin/group/:id(\\d+)', isAdmin, adminGroup.getOneGroup);
@@ -263,7 +269,7 @@ const colors = [
   { value: 'grey', color: '#9E9E9E' },
 ];
 const homePage = (req, res) => {
-  return knex('webguiSetting').select().where({
+  return knex('webguiSetting').where({
     key: 'base',
   }).then(success => {
     if (!success.length) {
@@ -290,22 +296,23 @@ app.get(/^\/home\//, homePage);
 app.get(/^\/admin\//, homePage);
 app.get(/^\/user\//, homePage);
 
-app.get('/serviceworker.js', (req, res) => {
-  return knex('webguiSetting').select().where({
-    key: 'base',
-  }).then(success => {
-    if (!success.length) {
-      return Promise.reject('settings not found');
-    }
-    success[0].value = JSON.parse(success[0].value);
-    return success[0].value;
-  }).then(success => {
+app.get('/serviceworker.js', async (req, res) => {
+  try {
+    const setting = await knex('webguiSetting').select().where({
+      key: 'base',
+    }).then(success => {
+      success[0].value = JSON.parse(success[0].value);
+      return success[0].value;
+    });
     res.header('Content-Type', 'text/javascript');
     res.render('serviceworker.js', {
-      serviceWorker: !!success.serviceWorker,
-      serviceWorkerTime: success.serviceWorkerTime,
+      serviceWorker: !!setting.serviceWorker,
+      serviceWorkerTime: setting.serviceWorkerTime,
     });
-  });
+  } catch(err) {
+    console.log(err);
+    res.status(500).end();
+  }
 });
 
 app.get('*', (req, res) => {

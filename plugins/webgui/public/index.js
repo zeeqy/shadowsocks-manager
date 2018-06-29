@@ -15,7 +15,7 @@ angular.module('app', [
 
 const window = require('window');
 angular.element(() => {
-  $.get('/api/home/login').then(success => {
+  $.get(window.api + '/api/home/login').then(success => {
     window.ssmgrConfig = success;
 
     require('./directives/focusMe');
@@ -35,5 +35,9 @@ angular.element(() => {
     require('./routes/index.js');
     
     angular.bootstrap(document, ['app']);
+  }).catch(err => {
+    let time = 5000;
+    if(err.status === 403) { time = 1500; }
+    setTimeout(() => { location.reload(); }, time);
   });
 });
